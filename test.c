@@ -4,7 +4,8 @@
 int main(void)
 {
 	printf("Hello World");
-	return 0;
+    printf("Daily Task Log");
+    return 0;
 
 }
 
