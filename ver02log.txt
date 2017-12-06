@@ -4,3 +4,10 @@ Ver02 log
 
 1:create Ver02 branch
 
+<<<<<<< HEAD
+=======
+
+2:updated Ver02 
+
+
+>>>>>>> Ver02
