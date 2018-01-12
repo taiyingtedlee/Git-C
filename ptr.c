@@ -4,7 +4,7 @@
 int main(char arg,char* argv[])
 {
 	int i; 
-	char a[]="hello world!";
+	char a[]={0x30,0x40,0x65,0x00,0x7e};
 	char b='x';
 	char *ptr= a;
 
@@ -16,7 +16,8 @@ int main(char arg,char* argv[])
 		printf("%c ", a[i]);
 	}
 	
-	for(;*ptr;++ptr)
+	// NOTE : if *ptr == 0x00 (0), then false!!!
+	for(;*ptr;ptr++)
 	{
 		printf("%c *(ptr++) :%p\n",*ptr,(void* )ptr);
 	}

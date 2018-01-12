@@ -17,6 +17,23 @@
 
 static unsigned char ccd[SIZE]={'\0'};
 static unsigned char saved_setting[SIZE]={'\0'};
+
+
+static const struct _setting_result result[]=
+{
+	{0,1,},
+	{1,3,*},
+	{2,1,},
+	{0,0,NULL},
+};
+
+static struct _setting_result 
+{
+	unsigned char pid;
+	unsigned short size;
+	unsigned char opt_result[10];  
+};
+
 static int saved_len=0;
 
 void input(void);
@@ -277,7 +294,65 @@ int main(void)
 	}
 	return 0;
 }
+/*
+static int send_bytes(const struct _cmd_option1_major *op1_major,const struct _cmd_option2_minor *op2_minor,unsigned char *result,int pos)
+{
+	unsigned char *p = (void *)result, **arr; 
+	int i;
+	
+	if (op2_minor->type == TYPE_ADDR)
+		printf("p = get_param_memory(USER_FIX_PARA_ID);\n");
+	else if(op2_minor->type == TYPE_FUNCTION)
+		return (op2_minor->num); // please check
+	else 
+		return -1;
+	printf("line:%d op1_major->id: %02x\n",__LINE__,op1_major->id);
+	result[pos++] = op1_major->id;
+	printf("line:%d result[%d] : %d\n",__LINE__,pos,op1_major->id);
+	result[pos++] = op2_minor->id;	
+	printf("line:%d result[%d] : %d\n",__LINE__,pos,op2_minor->id);
+	result[pos++] = (op2_minor->num >>8) &0xff;
+	printf("line:%d result[%d] : %d\n",__LINE__,pos,(op2_minor->num >>8)&0xff);
+	result[pos++] = (op2_minor->num >>0) &0xff;
+	printf("line:%d result[%d] : %d\n",__LINE__,pos,(op2_minor->num>>0)&0xff);
 
+	printf("line:%d op2_minor->arr : %p\n",__LINE__,op2_minor->arr);
+	arr = (unsigned char **)op2_minor->arr;	
+	printf("line:%d op2_minor->arr : %p\n",__LINE__,op2_minor->arr);
+	printf("line:%d op2_minor->type: %d\n",__LINE__,op2_minor->type);
+	printf("line:%d op2_minor->num: %d\n",__LINE__,op2_minor->num);
+	
+	printf("line:%d (unsigned int)arr[0] : %d\n",__LINE__,(unsigned int)arr[0]);
+	if(op2_minor->type == TYPE_ADDR){
+		for(i=0;i<op2_minor->num;i++){
+			result[pos++]=*( p + (unsigned int)arr[i]);
+		}
+	}
+	return 0;
+}
+*/
+/*
+static int recv_bytes(const struct _cmd_option1_major *op1_major,const struct _cmd_option2_minor *op2_minor,unsigned char *buf)
+{
+	unsigned char **arr, *p=NULL;
+	int i;
+	
+	if (op2_minor->type == TYPE_ADDR){
+		printf("p=get_para_memory(USER_FIX_PARA_ID);\n");
+		arr = (unsigned char **)op2_minor->arr;
+		for(i=0; i<op2_minor->num;i++){
+			*( p + (unsigned int )arr[i]) = *buf++;
+		}
+	}else if(op2_minor->type == TYPE_FUNCTION){
+		return ((int (*)(const struct _cmd_option1_major *,const struct _cmd_option2_minor*,unsigned char *,int))(op2_minor->arr))(op1_major,op2_minor,buf);
+	}
+
+	if ((op2_minor->type == TYPE_ADDR))
+		printf("save_param_memory(GET_FLAG(HOST_LINKING)?USER_FIX_PARA_ID:USER_TEMP_PARA_ID);\n");
+	
+	return 0;
+}
+*/
 int dispatch_cmd(unsigned char *cmd)
 {
 	/*
@@ -614,15 +689,16 @@ do_macro:
 							if(cmd[1]& 0x40){ // 0x4,5,6,7,C,D,E,F ; if cmd[1] is GET cmd
 								printf("GET cmd !!!\n");
 								int rn;
-//??? send_bytes() ???//
-//								rn = send_bytes(op1_major,op2_minor, result_buf1, send_len); 
+
+								printf("line:%d send_len: %d\n",__LINE__,send_len);
+							//	rn = send_bytes(op1_major,op2_minor,saved_setting, send_len); 
 								
 								if(rn<0){  // send_bytes <0
 									err=21;
 									goto err_nak;
 								}
 								if(op2_minor->type == TYPE_FUNCTION){ //  #define TYPE_FUNCTION 6
-									rn=4; // !!!!!!!!! Must update : send_bytes() !!!!!!!!! 
+									printf("line:%d rn: %d\n",__LINE__,rn);
 									send_len +=rn;
 								}
 								else{
@@ -764,14 +840,14 @@ do_finish:
 //??? hal_putchar ??? //
 //??? hal_trans_putchar ???//
 		hal_putchar('~'); // ?! LOOKUP func hal_putchar();
-		hal_trans_putchar(tmp= opcodes[(saved_setting[1] & CMD_MASK)+1]); // ?! LOOKUP func hal_trans_putchar()
+		hal_trans_putchar(tmp= opcodes[(cmd[1] & CMD_MASK)+1]); // ?! LOOKUP func hal_trans_putchar()
 		chksum ^=tmp;
-		hal_trans_putchar(tmp= saved_setting[2]);
+		hal_trans_putchar(tmp= cmd[2]);
 		chksum ^=tmp;
-		hal_trans_putchar(tmp= saved_setting[3]);
+		hal_trans_putchar(tmp= cmd[3]);
 		chksum ^=tmp;
 		// if not a "internal serial cmd" or "N2c serial cmd"; SERCMD_CINO_USE=(1<<7); SERCMD_INTERNAL =(1<<6);
-		hal_trans_putchar(tmp= saved_setting[4] & SERCMD_CINO_USE); 
+		hal_trans_putchar(tmp= cmd[4] & SERCMD_CINO_USE); 
 		chksum ^=tmp;
 //??? send_len >> 8 & 0xff ???//
 		hal_trans_putchar(tmp = ((send_len >> 8) & 0xff)); // ?!
@@ -780,7 +856,7 @@ do_finish:
 		hal_trans_putchar(tmp= ((send_len >> 0) &0xff)); //?!
 		chksum ^=tmp;	
 		for(i=0; i<send_len; i++){
-			hal_trans_putchar(tmp=saved_setting[7+i]);
+			hal_trans_putchar(tmp=buf[i]);
 			chksum^=tmp;
 		}
 		hal_trans_putchar(chksum);
